@@ -1,250 +1,73 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1485371785510785126/YyNo0_jO7WIwyz6Ar3dAhuV-nLMlb5UuaPtm-CbZ0SDYsf-TK1pJ7u065j6iK56Q-pFm";
+
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap');
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0e0e0e; }
-
-  .app {
-    min-height: 100vh;
-    background: #0e0e0e;
-    font-family: 'DM Mono', monospace;
-    color: #f0ece4;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .header {
-    width: 100%;
-    padding: 24px 28px 18px;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
-  }
-
-  .header-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #f0ece4;
-  }
-
-  .camera-wrap {
-    position: relative;
-    width: 100%;
-    max-width: 480px;
-    aspect-ratio: 3/4;
-    background: #111;
-    overflow: hidden;
-  }
-
-  .camera-wrap video {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-  }
-
-  .camera-wrap img.captured {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-  }
-
-  .face-guide {
-    position: absolute; inset: 0;
-    pointer-events: none;
-    display: flex; align-items: center; justify-content: center;
-  }
+  .app { min-height: 100vh; background: #0e0e0e; font-family: 'DM Mono', monospace; color: #f0ece4; display: flex; flex-direction: column; align-items: center; }
+  .header { width: 100%; padding: 24px 28px 18px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .header-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #f0ece4; }
+  .camera-wrap { position: relative; width: 100%; max-width: 480px; aspect-ratio: 3/4; background: #111; overflow: hidden; }
+  .camera-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .camera-wrap img.captured { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .face-guide { position: absolute; inset: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
   .face-guide svg { width: 55%; height: 70%; opacity: 0.3; }
-
-  .corner {
-    position: absolute; width: 20px; height: 20px;
-    border-color: rgba(255,255,255,0.55); border-style: solid;
-  }
+  .corner { position: absolute; width: 20px; height: 20px; border-color: rgba(255,255,255,0.55); border-style: solid; }
   .corner.tl { top:14px; left:14px; border-width: 2px 0 0 2px; }
   .corner.tr { top:14px; right:14px; border-width: 2px 2px 0 0; }
   .corner.bl { bottom:14px; left:14px; border-width: 0 0 2px 2px; }
   .corner.br { bottom:14px; right:14px; border-width: 0 2px 2px 0; }
-
-  .flash {
-    position: absolute; inset: 0;
-    background: white; opacity: 0;
-    pointer-events: none; transition: opacity 0s;
-  }
+  .flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0s; }
   .flash.go { opacity: 1; transition: opacity 0.07s; }
   .flash.fade { opacity: 0; transition: opacity 0.45s; }
-
-  .camera-err {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 10px; color: rgba(255,255,255,0.35);
-    font-size: 0.68rem; letter-spacing: 0.08em;
-    text-align: center; padding: 24px;
-  }
+  .camera-err { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: rgba(255,255,255,0.35); font-size: 0.68rem; text-align: center; padding: 24px; }
   .camera-err span:first-child { font-size: 2.2rem; opacity: 0.25; }
-
-  .loading-overlay {
-    position: absolute; inset: 0;
-    background: rgba(14,14,14,0.78);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 14px; z-index: 10;
-  }
-
-  .spinner {
-    width: 28px; height: 28px;
-    border: 2px solid rgba(255,255,255,0.1);
-    border-top-color: #C4472A;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
+  .loading-overlay { position: absolute; inset: 0; background: rgba(14,14,14,0.78); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 10; }
+  .spinner { width: 28px; height: 28px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #C4472A; border-radius: 50%; animation: spin 0.7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-text {
-    font-size: 0.62rem; letter-spacing: 0.15em;
-    text-transform: uppercase; color: rgba(255,255,255,0.35);
-  }
-
+  .loading-text { font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255,255,255,0.35); }
   canvas { display: none; }
-
-  .controls {
-    width: 100%; max-width: 480px;
-    padding: 18px 22px 8px;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-
-  .shutter-row {
-    display: flex; align-items: center;
-    justify-content: center; padding: 10px 0;
-  }
-
-  .shutter-btn {
-    width: 70px; height: 70px; border-radius: 50%;
-    border: 3px solid rgba(255,255,255,0.65);
-    background: transparent; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s;
-  }
-  .shutter-btn::after {
-    content: ''; width: 54px; height: 54px;
-    border-radius: 50%; background: white; transition: all 0.12s;
-  }
-  .shutter-btn:hover::after { transform: scale(0.93); background: #f0ece4; }
+  .name-section { width: 100%; max-width: 480px; padding: 16px 22px 0; display: flex; flex-direction: column; gap: 6px; }
+  .name-label { font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.3); }
+  .name-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-bottom: 2px solid rgba(255,255,255,0.25); padding: 12px 14px; font-family: 'DM Mono', monospace; font-size: 0.9rem; color: #f0ece4; outline: none; transition: all 0.15s; }
+  .name-input:focus { border-bottom-color: #C4472A; background: rgba(255,255,255,0.07); }
+  .name-input::placeholder { color: rgba(255,255,255,0.2); }
+  .controls { width: 100%; max-width: 480px; padding: 18px 22px 8px; display: flex; flex-direction: column; gap: 10px; }
+  .shutter-row { display: flex; align-items: center; justify-content: center; padding: 10px 0; }
+  .shutter-btn { width: 70px; height: 70px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.65); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .shutter-btn::after { content: ''; width: 54px; height: 54px; border-radius: 50%; background: white; transition: all 0.12s; }
+  .shutter-btn:hover::after { transform: scale(0.93); }
   .shutter-btn:active::after { transform: scale(0.86); }
   .shutter-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-
-  .hint {
-    font-size: 0.58rem; letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.28);
-    text-align: center; line-height: 1.7;
-  }
-
-  .diagnose-btn {
-    background: #C4472A; border: none; color: white;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.68rem; letter-spacing: 0.14em;
-    text-transform: uppercase; padding: 15px;
-    cursor: pointer; transition: background 0.15s; width: 100%;
-  }
+  .hint { font-size: 0.58rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.28); text-align: center; line-height: 1.7; }
+  .diagnose-btn { background: #C4472A; border: none; color: white; font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; padding: 15px; cursor: pointer; transition: background 0.15s; width: 100%; }
   .diagnose-btn:hover:not(:disabled) { background: #a83825; }
   .diagnose-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-  .retake-btn {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.5);
-    font-family: 'DM Mono', monospace;
-    font-size: 0.62rem; letter-spacing: 0.12em;
-    text-transform: uppercase; padding: 11px;
-    cursor: pointer; transition: all 0.12s;
-  }
+  .retake-btn { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.5); font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 11px; cursor: pointer; transition: all 0.12s; }
   .retake-btn:hover { border-color: rgba(255,255,255,0.4); color: white; }
-
-  .result-panel {
-    width: 100%; max-width: 480px;
-    border-top: 1px solid rgba(255,255,255,0.07);
-    padding: 26px 22px 52px;
-    animation: slideUp 0.5s ease;
-  }
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .section-label {
-    font-size: 0.52rem; letter-spacing: 0.25em;
-    text-transform: uppercase; color: rgba(255,255,255,0.28);
-    margin-bottom: 16px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-label::after {
-    content: ''; flex: 1; height: 1px;
-    background: rgba(255,255,255,0.08);
-  }
-
-  .face-type {
-    font-family: 'Playfair Display', serif;
-    font-size: 2.3rem; font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #C4472A; margin-bottom: 4px;
-  }
-
-  .face-type-en {
-    font-family: 'Playfair Display', serif;
-    font-size: 0.82rem; font-style: italic;
-    color: #B8860B; margin-bottom: 16px;
-  }
-
+  .result-panel { width: 100%; max-width: 480px; border-top: 1px solid rgba(255,255,255,0.07); padding: 26px 22px 52px; animation: slideUp 0.5s ease; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  .section-label { font-size: 0.52rem; letter-spacing: 0.25em; text-transform: uppercase; color: rgba(255,255,255,0.28); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+  .result-name { font-family: 'Playfair Display', serif; font-size: 0.85rem; font-style: italic; color: rgba(255,255,255,0.4); margin-bottom: 12px; }
+  .face-type { font-family: 'Playfair Display', serif; font-size: 2.3rem; font-weight: 700; letter-spacing: -0.02em; color: #C4472A; margin-bottom: 4px; }
+  .face-type-en { font-family: 'Playfair Display', serif; font-size: 0.82rem; font-style: italic; color: #B8860B; margin-bottom: 16px; }
   .impression-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
-
-  .tag {
-    font-size: 0.57rem; letter-spacing: 0.1em;
-    text-transform: uppercase;
-    border: 1px solid rgba(255,255,255,0.18);
-    padding: 4px 10px; color: rgba(255,255,255,0.55);
-  }
-
+  .tag { font-size: 0.57rem; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.18); padding: 4px 10px; color: rgba(255,255,255,0.55); }
   .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 16px 0; }
-
   .scores-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
-
-  .score-item label {
-    font-size: 0.52rem; letter-spacing: 0.14em;
-    text-transform: uppercase; color: rgba(255,255,255,0.32);
-    display: block; margin-bottom: 5px;
-  }
+  .score-item label { font-size: 0.52rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.32); display: block; margin-bottom: 5px; }
   .score-bar-track { height: 2px; background: rgba(255,255,255,0.09); }
   .score-bar-fill { height: 100%; background: #C4472A; transition: width 0.9s cubic-bezier(0.25,0,0,1); }
   .score-num { font-size: 0.95rem; font-weight: 500; margin-top: 5px; color: #f0ece4; }
-
-  .description-text {
-    font-size: 0.76rem; line-height: 1.9;
-    color: rgba(255,255,255,0.6); margin-bottom: 16px;
-  }
-
-  .advice-block {
-    background: rgba(255,255,255,0.035);
-    border-left: 2px solid #B8860B;
-    padding: 14px 16px;
-    font-size: 0.73rem; line-height: 1.8;
-    color: rgba(255,255,255,0.55);
-  }
-  .advice-label {
-    font-size: 0.48rem; letter-spacing: 0.2em;
-    text-transform: uppercase; color: #B8860B; margin-bottom: 6px;
-  }
-
-  .discord-badge {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 0.62rem; letter-spacing: 0.07em;
-    padding: 10px 13px; margin-top: 16px;
-    animation: slideUp 0.3s ease;
-  }
-  .discord-badge.ok  { background: rgba(88,101,242,0.1); color: #7289da; border-left: 2px solid #7289da; }
+  .description-text { font-size: 0.76rem; line-height: 1.9; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+  .advice-block { background: rgba(255,255,255,0.035); border-left: 2px solid #B8860B; padding: 14px 16px; font-size: 0.73rem; line-height: 1.8; color: rgba(255,255,255,0.55); }
+  .advice-label { font-size: 0.48rem; letter-spacing: 0.2em; text-transform: uppercase; color: #B8860B; margin-bottom: 6px; }
+  .discord-badge { display: flex; align-items: center; gap: 8px; font-size: 0.62rem; padding: 10px 13px; margin-top: 16px; animation: slideUp 0.3s ease; }
+  .discord-badge.ok { background: rgba(88,101,242,0.1); color: #7289da; border-left: 2px solid #7289da; }
   .discord-badge.err { background: rgba(196,71,42,0.1); color: #C4472A; border-left: 2px solid #C4472A; }
   .discord-badge.sending { background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.3); border-left: 2px solid rgba(255,255,255,0.15); }
 `;
@@ -269,6 +92,7 @@ export default function FaceDiagnosis() {
   const [result, setResult] = useState(null);
   const [discordStatus, setDiscordStatus] = useState(null);
   const [discordMsg, setDiscordMsg] = useState("");
+  const [name, setName] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -311,30 +135,52 @@ export default function FaceDiagnosis() {
     setResult(null); setDiscordStatus(null);
   };
 
+  const sendToDiscord = async (diagResult) => {
+    if (!diagResult || diagResult.error) return;
+    setDiscordStatus("sending"); setDiscordMsg("Discordに送信中...");
+    try {
+      const embed = {
+        title: `🔮 顔診断結果：${diagResult.faceType}${name ? `（${name}）` : ""}`,
+        description: diagResult.description,
+        color: 0xC4472A,
+        fields: [
+          ...(name ? [{ name: "名前", value: name, inline: false }] : []),
+          { name: "印象", value: diagResult.impressions?.join(" / ") ?? "—", inline: false },
+          { name: "対称性", value: `${diagResult.scores?.symmetry ?? 0}/100`, inline: true },
+          { name: "柔らかさ", value: `${diagResult.scores?.softness ?? 0}/100`, inline: true },
+          { name: "シャープさ", value: `${diagResult.scores?.sharpness ?? 0}/100`, inline: true },
+          { name: "個性", value: `${diagResult.scores?.uniqueness ?? 0}/100`, inline: true },
+          { name: "アドバイス", value: diagResult.advice, inline: false },
+        ],
+        footer: { text: "Face Diagnosis App • 自動送信" }
+      };
+      const res = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ embeds: [embed] })
+      });
+      setDiscordStatus(res.ok || res.status === 204 ? "ok" : "err");
+      setDiscordMsg(res.ok || res.status === 204 ? "✓ Discordに送信しました" : "送信失敗。");
+    } catch {
+      setDiscordStatus("err"); setDiscordMsg("ネットワークエラーが発生しました。");
+    }
+  };
+
   const handleDiagnose = async () => {
     if (!imageBase64) return;
     setLoading(true); setResult(null); setDiscordStatus(null);
     try {
-      // → サーバー側APIルート経由（APIキーはサーバーで管理）
       const res = await fetch("/api/diagnose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(imageBase64)
+        body: JSON.stringify({ imageBase64: imageBase64.data, mediaType: imageBase64.mediaType })
       });
+      if (!res.ok) throw new Error("API error");
       const parsed = await res.json();
+      if (parsed.error) throw new Error(parsed.error);
       setResult(parsed);
-
-      // Discord送信もサーバー経由
-      setDiscordStatus("sending"); setDiscordMsg("Discordに送信中...");
-      const dRes = await fetch("/api/discord", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed)
-      });
-      const dData = await dRes.json();
-      setDiscordStatus(dData.ok ? "ok" : "err");
-      setDiscordMsg(dData.ok ? "✓ Discordに送信しました" : "送信失敗。");
-    } catch {
+      await sendToDiscord(parsed);
+    } catch (e) {
       setResult({ error: "診断に失敗しました。もう一度お試しください。" });
     }
     setLoading(false);
@@ -390,6 +236,17 @@ export default function FaceDiagnosis() {
           <canvas ref={canvasRef} />
         </div>
 
+        <div className="name-section">
+          <div className="name-label">Your Name</div>
+          <input
+            className="name-input"
+            type="text"
+            placeholder="名前を入力してください"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+        </div>
+
         <div className="controls">
           {!capturedImg ? (
             <>
@@ -411,6 +268,7 @@ export default function FaceDiagnosis() {
         {!loading && result && !result.error && (
           <div className="result-panel">
             <div className="section-label">Diagnosis Result</div>
+            {name && <div className="result-name">{name} さんの診断結果</div>}
             <div className="face-type">{result.faceType}</div>
             <div className="face-type-en">{result.faceTypeEn}</div>
             <div className="impression-tags">
