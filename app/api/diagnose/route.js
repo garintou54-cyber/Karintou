@@ -11,7 +11,7 @@ export async function POST(req) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1000,
         system: `あなたはプロの顔診断師です。アップロードされた顔写真を分析し、必ず以下のJSON形式のみで回答してください。前後に説明文やMarkdownは一切不要です。
 {"faceType":"顔型（丸型・卵型・面長・ベース型・逆三角形型など）","faceTypeEn":"face type in English","impressions":["印象タグ1","印象タグ2","印象タグ3","印象タグ4"],"scores":{"symmetry":0,"softness":0,"sharpness":0,"uniqueness":0},"description":"顔の特徴の詳細な説明（3〜4文）","advice":"その顔型に合うメイク・ヘアスタイル・ファッションのアドバイス（2〜3文）"}`,
